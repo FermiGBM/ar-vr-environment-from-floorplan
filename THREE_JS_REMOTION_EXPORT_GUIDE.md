@@ -581,3 +581,47 @@ For Three.js + Remotion integration, **GLTF/GLB format is the best choice** due 
 5. **Industry Standard**: Most widely adopted format for web 3D
 
 The binary GLB format is particularly recommended for production use as it provides the best balance of file size, loading performance, and feature support for Three.js + Remotion projects.
+
+---
+
+## Exporting an explorable world + trailing camera (notebook v2)
+
+The Kaggle notebook now exports more than a mesh:
+
+| File | Contents |
+|---|---|
+| `3d/scene_1.glb` | explorable world (plan rooms or photo room shell), PBR materials, Z-up |
+| `3d/scene_1.json` | spawn, zones, nav grid, furniture, camera settings |
+| `3d/camera_path_1.json` | looping `subject_path` + `camera_path` keyframes (fps 30, 360 frames) |
+| `web/viewer_1.html` | Walk / Orbit / Cinematic preview with the same trailing camera |
+
+`camera_path_1.json` is frame-indexed and already bakes the trailing offset into `camera_path`, so
+rendering is deterministic: no per-frame accumulator, safe for parallel frame rendering / Lambda.
+Points are trimesh **Z-up**; convert with `(x, y, z) → (x, z, -y)`.
+
+A ready-to-use component lives in `remotion_trailing_camera.tsx`. The core of it is:
+
+```tsx
+const toThree = (p) => new THREE.Vector3(p[0], p[2], -p[1]); // Z-up -> Y-up
+
+const curves = {
+  subject: new THREE.CatmullRomCurve3(path.subject_path.map(k => toThree(k.position)), true, 'centripetal'),
+  camera:  new THREE.CatmullRomCurve3(path.camera_path.map(k => toThree(k.position)), true, 'centripetal'),
+};
+const t = (frame % path.frames) / path.frames;
+const lag = path.settings.look_at_lag_frames / path.frames;
+const subject = curves.subject.getPointAt(t);
+const eye = curves.camera.getPointAt((t - lag + 1) % 1);       // camera trails the subject
+const lookAt = curves.subject.getPointAt((t - lag * 2 + 1) % 1);
+camera.position.copy(eye);
+camera.lookAt(lookAt);
+```
+
+Notes:
+
+- Use `<ThreeCanvas>` from `@remotion/three` so `useCurrentFrame()` works inside React Three Fiber.
+- Rotate the imported GLB with `rotation={[-Math.PI / 2, 0, 0]}` (after cloning the loaded scene).
+- Set `Config.setChromiumOpenGlRenderer('angle')` in `remotion.config.ts`; pass `chromiumOptions.gl:
+  'angle'` for serverless rendering.
+- The viewer's **Cinematic** mode plays the same curves, so what you preview in the notebook is what
+  Remotion renders.

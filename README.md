@@ -1,15 +1,16 @@
-# 3D Environment from a 2D Image
+# Explorable 3D World from a 2D Image
 
-Turn a flat 2D image into a **detailed, textured 3D environment** exported as a single **GLB** (plus
-glTF + a JSON manifest + a three.js viewer). Runs headless on Kaggle with **no required input** — with
-no image it builds a synthetic floor plan so the whole notebook finishes.
+Turn a flat 2D image into a **walkable 3D world**, exported as one **GLB** plus a JSON manifest, a
+looping **trailing-camera path** for Remotion, and a three.js viewer with **Walk / Orbit / Cinematic**
+modes and a WebXR VR button. Runs headless on Kaggle with **no required input** — with no image it
+builds a synthetic floor plan so the whole notebook finishes.
 
 Two input paths, chosen automatically by looking at the image (or force one with `MODE`):
 
 | Input looks like… | Path | Result |
 |---|---|---|
 | **A floor plan** — dark linework on a light background | **Plan** | discrete **rooms** + walls + door gaps + furniture |
-| **Any other photo** — a room, a street, anything | **Photo** | a depth **relief mesh** textured with the image |
+| **Any other photo** — a room, a street, anything | **Photo** | a **walkable room shell** (floor, walls, ceiling), the image as a depth-displaced backdrop + floor/ceiling bands, image-derived props, and a nav grid |
 
 ## What it does
 
@@ -23,29 +24,34 @@ Two input paths, chosen automatically by looking at the image (or force one with
 **Photo path**
 1. Estimate monocular depth — **Depth-Anything V2 (small)** via `transformers`; a classical
    pseudo-depth fallback if there is no torch / no internet.
-2. Build a textured relief mesh from the depth and drape the source image over it.
+2. Infer a room from image aspect + depth; sample floor/wall/ceiling colours from the image bands.
+3. Stand the image up as a **depth-displaced backdrop** on the far wall and continue it onto the
+   floor and ceiling as thinner depth panels, so it reads like the source from spawn but has parallax.
+4. Detect near blobs → choose and place multi-part props with the same solver as the plan path.
 
-Both paths export one **GLB** with correct PBR materials/UVs + a JSON manifest + a three.js viewer.
+Both paths export one **GLB** with correct PBR materials/UVs, a manifest with **spawn, zones, nav
+grid and camera paths**, a Remotion-ready `camera_path_*.json`, and the viewer.
 
 ## Files
 
 - `ar_vr_environment_kaggle.ipynb` — the notebook. Start here.
+- `THREE_JS_REMOTION_EXPORT_GUIDE.md`, `remotion_trailing_camera.tsx`, `three_js_remotion_example.py`,
+  `three_js_remotion_exporter.py` — notes and helpers for three.js / Remotion, including a deterministic
+  trailing-camera component that consumes `camera_path_1.json`.
 - `ATLAS3D_INTEGRATION_ANALYSIS.md`, `ATLAS3D_COMPARISON.md`, `atlas3d_integration_example.py` —
   notes and an example on physically-constrained 3D generation (Atlas3D).
-- `THREE_JS_REMOTION_EXPORT_GUIDE.md`, `three_js_remotion_example.py`,
-  `three_js_remotion_exporter.py` — notes and helpers on exporting 3D scenes for three.js / Remotion.
 
 ## Run it
 
 On Kaggle: open the notebook, attach an image dataset (or let it build the synthetic sample), then
 **Run All**. Outputs are written to `/kaggle/working/outputs/`.
 
-To use your own image, either drop it into a Kaggle Dataset (it appears under `/kaggle/input/...`) or
-set `IMAGE_PATH` in cell 2. `MODE` is `"auto"` (detect), `"plan"`, or `"photo"`.
+To use your own image, drop it into a Kaggle Dataset (it appears under `/kaggle/input/...`) or set
+`IMAGE_PATH` in cell 2. `MODE` is `"auto"` (detect), `"plan"`, or `"photo"`.
 
 > The photo path downloads a depth model from Hugging Face, so enable **Internet** in the Kaggle run
 > settings to get real depth; without it (or without torch) it falls back to a pseudo-depth and still
-> finishes.
+> builds a world.
 
 Locally:
 
@@ -59,15 +65,26 @@ jupyter notebook ar_vr_environment_kaggle.ipynb
 ## Output
 
 - `3d/scene_1.glb` — single-file binary glTF, PBR materials, embedded textures
-- `3d/scene_1.json` — manifest: `kind` (plan/photo), rooms, furniture, interaction points, lighting
+- `3d/scene_1.json` — manifest: `kind`, rooms/zones, furniture, spawn, nav grid, interaction points,
+  lighting, physics, camera settings
+- `3d/camera_path_1.json` — looping `subject_path` + `camera_path` keyframes (fps 30, 360 frames)
+- `3d/gltf/` — JSON glTF + external buffers (interchange)
 - `textures/*.png` — the procedural textures (plan path)
-- `web/viewer_1.html` — three.js viewer (serve it next to the matching `.glb`)
+- `visualizations/*.png` — plan + 3D previews (photo path: source + depth)
+- `web/viewer_1.html` — walkable three.js viewer; serve `outputs/` over HTTP and open it
+
+Viewer controls: **1** walk (click to lock mouse, WASD, Shift run, Space jump, Esc release),
+**2** orbit (drag / wheel / right-drag), **3** cinematic trailing camera, plus a WebXR button.
+
+Coordinates in the GLB and JSON are **trimesh Z-up**; convert to three.js with
+`(x, y, z) → (x, z, -y)` (a −90° rotation about X). The viewer and the Remotion helper do this.
 
 ## Notes / limitations
 
 - The plan path drafts geometry from the plan's ink; a perspective phone photo of a plan wants a
   "make it top-down" step first. Add a segmentation model in the parse step to go further.
-- The photo path produces a relief surface, not discrete rooms — that is the nature of single-image
-  depth. A stronger depth model or multi-view input raises quality.
-- Placement is a small deterministic constraint solver (grounding + overlap separation), not a full
-  rigid-body simulator.
+- The photo path invents the room shell and prop types from image heuristics; a single view cannot
+  reveal what is behind the camera. A stronger depth model / segmentation or multi-view input helps.
+- Navigation uses a rasterised grid + prop footprints, not a full physics engine; the camera is
+  eye-height with simple gravity and sliding collision.
+- Camera paths are deterministic Catmull–Rom loops, so Remotion can render frames in any order.

@@ -263,7 +263,7 @@ function cinematic(frame) {
   if (marker) marker.position.copy(subj);
 }
 
-new GLTFLoader().load('__GLB__', (gltf) => {
+new GLTFLoader().load('__GLB_URL__', (gltf) => {
   const root = gltf.scene;
   if (AXIS === 'z-up') root.rotation.x = -Math.PI/2;   // trimesh Z-up -> three.js Y-up
   root.traverse(o => { if (o.isMesh) {
@@ -332,6 +332,7 @@ for i, (glb, meta) in enumerate(exports, 1):
     payload = json.dumps(meta, separators=(",", ":")).replace("</", "<\\/")
     html = (VIEWER.replace("__TITLE__", f"Environment {i}")
                   .replace("__GLB__", glb.name)
+                  .replace("__GLB_URL__", "../3d/" + glb.name)
                   .replace("__ROOMS__", str(len(meta["rooms"]) or len(meta["zones"])))
                   .replace("__ITEMS__", str(len(meta["furniture"])))
                   .replace("__DEPTH__", str(meta.get("depth_method") or "n/a"))

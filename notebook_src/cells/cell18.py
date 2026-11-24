@@ -19,6 +19,21 @@ VIEWER = r"""<!DOCTYPE html>
          background:#7fd1ff;opacity:.8;z-index:4;display:none}
   #label{position:fixed;bottom:12px;left:12px;z-index:5;background:rgba(14,17,22,.7);
          padding:6px 10px;border-radius:8px;font-size:12px;color:#9bb0c8}
+  #touch{position:fixed;left:18px;bottom:64px;z-index:6;width:132px;height:132px;
+         display:none;touch-action:none;user-select:none;-webkit-user-select:none}
+  #stick{position:absolute;inset:0;border:2px solid rgba(127,209,255,.45);
+         border-radius:50%;background:rgba(20,34,50,.55)}
+  #knob{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px;
+         border-radius:50%;background:rgba(127,209,255,.72);box-shadow:0 0 16px #2f7fb8}
+  #jump{position:fixed;right:20px;bottom:72px;z-index:6;display:none;
+         width:72px;height:72px;border-radius:50%;border:2px solid #3c587a;
+         background:rgba(34,48,67,.86);color:#d7e8ff;font-size:13px;touch-action:none}
+  @media (pointer: coarse){
+    #touch,#jump{display:block}
+    #hud{max-width:min(92vw,340px);font-size:12px}
+    button.mode{padding:9px 12px;font-size:13px}
+    #label{bottom:8px}
+  }
 </style>
 </head>
 <body>
@@ -34,6 +49,8 @@ VIEWER = r"""<!DOCTYPE html>
   Cinematic: camera trails the marker like a Remotion shot</div>
 </div>
 <div id="cross"></div>
+<div id="touch"><div id="stick"><div id="knob"></div></div></div>
+<button id="jump">JUMP</button>
 <div id="label">loading __GLB__ …</div>
 <script type="importmap">
 { "imports": {
@@ -54,6 +71,15 @@ const toV = (a) => AXIS === 'z-up'
   : new THREE.Vector3(a[0], a[1], a[2]);
 const label = document.getElementById('label');
 const cross = document.getElementById('cross');
+const TOUCH = matchMedia('(pointer: coarse)').matches || ('ontouchstart' in window);
+const MODE_LABEL = TOUCH
+  ? {walk:'Walk · joystick + drag to look', orbit:'Orbit · drag / pinch', cine:'Cinematic · trailing camera'}
+  : {walk:'Walk mode · WASD + mouse', orbit:'Orbit overview', cine:'Cinematic · trailing camera'};
+const modeLabel = () => MODE_LABEL[mode];
+if (TOUCH) document.getElementById('hint').innerHTML =
+  'Walk: joystick to move · drag screen to look · JUMP button<br/>' +
+  'Orbit: one-finger drag · pinch to zoom<br/>' +
+  'Cinematic: trailing camera follows the marker';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0e1116);
@@ -136,9 +162,53 @@ addEventListener('mousemove', e => {
   pitch = THREE.MathUtils.clamp(pitch - e.movementY*0.0022, -1.35, 1.35);
 });
 renderer.domElement.addEventListener('click', () => {
-  if (mode==='walk' && document.pointerLockElement !== renderer.domElement)
+  if (mode==='walk' && !TOUCH && document.pointerLockElement !== renderer.domElement)
     renderer.domElement.requestPointerLock();
 });
+
+// ---------- touch input (mobile) -------------------------------------------
+const joy = {x:0, y:0, id:null};
+const stickEl = document.getElementById('touch');
+const knobEl = document.getElementById('knob');
+function setJoy(e) {
+  const r = stickEl.getBoundingClientRect();
+  let dx = (e.clientX - (r.left + r.width / 2)) / (r.width * 0.34);
+  let dy = (e.clientY - (r.top + r.height / 2)) / (r.height * 0.34);
+  const m = Math.hypot(dx, dy);
+  if (m > 1) { dx /= m; dy /= m; }
+  joy.x = dx; joy.y = -dy;                       // stick up = walk forward
+  knobEl.style.transform = `translate(${dx * r.width * 0.30}px,${dy * r.height * 0.30}px)`;
+}
+stickEl.addEventListener('pointerdown', e => {
+  joy.id = e.pointerId; stickEl.setPointerCapture(e.pointerId); setJoy(e); e.preventDefault();
+}, {passive:false});
+stickEl.addEventListener('pointermove', e => { if (e.pointerId === joy.id) setJoy(e); }, {passive:false});
+function endJoy(e) {
+  if (e.pointerId !== joy.id) return;
+  joy.id = null; joy.x = 0; joy.y = 0; knobEl.style.transform = '';
+}
+stickEl.addEventListener('pointerup', endJoy);
+stickEl.addEventListener('pointercancel', endJoy);
+
+const lookTouch = {id:null, x:0, y:0};
+renderer.domElement.addEventListener('pointerdown', e => {
+  if (!TOUCH || mode !== 'walk' || e.pointerType === 'mouse') return;
+  lookTouch.id = e.pointerId; lookTouch.x = e.clientX; lookTouch.y = e.clientY;
+  renderer.domElement.setPointerCapture(e.pointerId); e.preventDefault();
+}, {passive:false});
+renderer.domElement.addEventListener('pointermove', e => {
+  if (!TOUCH || mode !== 'walk' || e.pointerId !== lookTouch.id) return;
+  yaw -= (e.clientX - lookTouch.x) * 0.005;
+  pitch = THREE.MathUtils.clamp(pitch - (e.clientY - lookTouch.y) * 0.005, -1.35, 1.35);
+  lookTouch.x = e.clientX; lookTouch.y = e.clientY; e.preventDefault();
+}, {passive:false});
+function endLook(e) { if (e.pointerId === lookTouch.id) lookTouch.id = null; }
+renderer.domElement.addEventListener('pointerup', endLook);
+renderer.domElement.addEventListener('pointercancel', endLook);
+document.getElementById('jump').addEventListener('pointerdown', e => {
+  if (mode === 'walk' && onGround) { vy = 4.2; onGround = false; }
+  e.preventDefault();
+}, {passive:false});
 function setMode(next) {
   mode = next;
   for (const m of ['walk','orbit','cine'])
@@ -154,8 +224,7 @@ function setMode(next) {
     pitch = 0; vy = 0;
   }
   if (mode==='cine' && !curves) buildCurves();
-  label.textContent = ({walk:'Walk mode · WASD + mouse', orbit:'Orbit overview',
-                        cine:'Cinematic · trailing camera'})[mode];
+  label.textContent = modeLabel();
 }
 document.getElementById('m-walk').onclick = () => setMode('walk');
 document.getElementById('m-orbit').onclick = () => setMode('orbit');
@@ -211,8 +280,7 @@ new GLTFLoader().load('__GLB__', (gltf) => {
   camera.position.copy(center).add(new THREE.Vector3(r*0.9, r*0.75, r*1.1));
   camera.near = r/200; camera.far = r*50; camera.updateProjectionMatrix();
   controls.update();
-  label.textContent = ({walk:'Walk mode · click to look around', orbit:'Orbit overview',
-                        cine:'Cinematic · trailing camera'})[mode];
+  label.textContent = modeLabel();
 }, undefined, (err) => { console.error(err); label.textContent = 'GLB load failed: '+err.message; });
 
 addEventListener('resize', () => {
@@ -236,8 +304,10 @@ function loop() {
       if (keys.KeyS || keys.ArrowDown)  { mx-=fx; mz-=fz; }
       if (keys.KeyD || keys.ArrowRight) { mx+=rx; mz+=rz; }
       if (keys.KeyA || keys.ArrowLeft)  { mx-=rx; mz-=rz; }
-      const ln = Math.hypot(mx,mz) || 1;
-      mx = mx/ln*speed/60; mz = mz/ln*speed/60;
+      if (TOUCH) { mx += fx*joy.y + rx*joy.x; mz += fz*joy.y + rz*joy.x; }
+      const mag = Math.hypot(mx,mz);
+      const scale = mag > 1 ? 1/mag : 1;
+      mx = mx*scale*speed/60; mz = mz*scale*speed/60;
       if (canStand(player.x+mx, player.z)) player.x += mx;
       if (canStand(player.x, player.z+mz)) player.z += mz;
       vy -= 11.0/60;

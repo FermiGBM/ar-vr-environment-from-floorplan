@@ -1,0 +1,7 @@
+# notebook backups and generated outputs
+*.bak
+.ipynb_checkpoints/
+__pycache__/
+*.pyc
+outputs/
+environments.zip

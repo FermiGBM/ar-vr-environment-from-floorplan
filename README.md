@@ -79,6 +79,26 @@ Viewer controls: **1** walk (click to lock mouse, WASD, Shift run, Space jump, E
 Coordinates in the GLB and JSON are **trimesh Z-up**; convert to three.js with
 `(x, y, z) → (x, z, -y)` (a −90° rotation about X). The viewer and the Remotion helper do this.
 
+## Look presets (jail cell reconstruction)
+
+`jail_cell_builder.py` can emit the same layout in three material treatments:
+
+| `--look` | Walls / floors / ceiling | Props (bars, gate, bed, pipes) | GLB |
+|---|---|---|---|
+| `cartoon` | flat procedural palette, no maps | flat palette | ~3 MB |
+| `hybrid` | original palette albedo + generated normal / roughness / AO from the block & tile relief | full CC0 PBR | ~2.3 MB |
+| `photoreal` | full Poly Haven CC0 PBR, recoloured to the frame palette (`--tint palette`) or untouched (`--tint natural`) | full CC0 PBR | ~4 MB |
+
+```bash
+python fetch_pbr.py                     # once: 7 CC0 sets into ~/arvr-test/pbr
+python jail_cell_builder.py --views ~/prison_views/shots --out ~/jail_world_hybrid \
+    --pbr ~/arvr-test/pbr --look hybrid
+```
+
+`polish_glb` is the GLB post-step: it re-encodes embedded maps as JPEG and writes real
+vertex normals, which trimesh omits whenever a texture visual is attached. Boxes are built
+with split per-face vertices, so normals stay hard-edged while cylinders stay smooth.
+
 ## Notes / limitations
 
 - The plan path drafts geometry from the plan's ink; a perspective phone photo of a plan wants a

@@ -63,6 +63,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VRButton } from 'three/addons/webxr/VRButton.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 const MAN = __MANIFEST__;
 const AXIS = MAN.axis || 'z-up';
@@ -83,6 +84,7 @@ if (TOUCH) document.getElementById('hint').innerHTML =
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0e1116);
+scene.fog = new THREE.Fog(0x0e1116, 16, 52);
 const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.05, 500);
 const renderer = new THREE.WebGLRenderer({ antialias:true });
 renderer.setSize(innerWidth, innerHeight);
@@ -90,12 +92,18 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
 renderer.xr.enabled = true;
 document.body.appendChild(renderer.domElement);
 document.body.appendChild(VRButton.createButton(renderer));
 
-scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30343c, 0.9));
-const sun = new THREE.DirectionalLight(0xffffff, 1.8);
+// image-based lighting so PBR metal/roughness reads correctly
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30343c, 0.45));
+const sun = new THREE.DirectionalLight(0xffffff, 1.25);
 sun.position.set(8, 16, 6);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
@@ -266,10 +274,18 @@ function cinematic(frame) {
 new GLTFLoader().load('__GLB_URL__', (gltf) => {
   const root = gltf.scene;
   if (AXIS === 'z-up') root.rotation.x = -Math.PI/2;   // trimesh Z-up -> three.js Y-up
+  const maxAniso = renderer.capabilities.getMaxAnisotropy();
   root.traverse(o => { if (o.isMesh) {
     o.castShadow = true; o.receiveShadow = true;
     const mats = Array.isArray(o.material) ? o.material : [o.material];
-    mats.forEach(m => { if (m) m.side = THREE.DoubleSide; });
+    mats.forEach(m => { if (!m) return;
+      m.side = THREE.DoubleSide;
+      m.envMapIntensity = 1.0;
+      for (const k of ['map','normalMap','roughnessMap','metalnessMap','aoMap','emissiveMap']) {
+        if (m[k]) { m[k].anisotropy = maxAniso; m[k].channel = 0; m[k].needsUpdate = true; }
+      }
+      m.needsUpdate = true;
+    });
   }});
   scene.add(root);
   const box = new THREE.Box3().setFromObject(root);

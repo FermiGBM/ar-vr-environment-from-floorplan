@@ -1,5 +1,8 @@
 # Explorable 3D World from a 2D Image
 
+**Live demo (jail-block reconstruction, three material treatments):**
+https://fermigbm.github.io/ar-vr-environment-from-floorplan/
+
 Turn a flat 2D image into a **walkable 3D world**, exported as one **GLB** plus a JSON manifest, a
 looping **trailing-camera path** for Remotion, and a three.js viewer with **Walk / Orbit / Cinematic**
 modes and a WebXR VR button. Runs headless on Kaggle with **no required input** — with no image it

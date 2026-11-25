@@ -92,6 +92,9 @@ Coordinates in the GLB and JSON are **trimesh Z-up**; convert to three.js with
 | `hybrid` | original palette albedo + generated normal / roughness / AO from the block & tile relief | full CC0 PBR | ~2.3 MB |
 | `photoreal` | full Poly Haven CC0 PBR, recoloured to the frame palette (`--tint palette`) or untouched (`--tint natural`) | full CC0 PBR | ~4 MB |
 
+Published names on the demo site: `hybrid` → **Material Upgrade**, `photoreal` →
+**Wall Material Replacement (Rough Stone)**, `cartoon` → **Original 2d to 3d Assimilation**.
+
 ```bash
 python fetch_pbr.py                     # once: 7 CC0 sets into ~/arvr-test/pbr
 python jail_cell_builder.py --views ~/prison_views/shots --out ~/jail_world_hybrid \

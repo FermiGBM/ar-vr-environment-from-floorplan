@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jail block — map variants</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+         background: #0e1116; color: #e8edf2; }
+  main { max-width: 980px; margin: 0 auto; padding: 40px 20px 64px; }
+  h1 { font-size: clamp(22px, 4vw, 34px); margin: 0 0 6px; letter-spacing: -0.02em; }
+  p.sub { color: #93a1af; margin: 0 0 28px; }
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  a.card { display: block; text-decoration: none; color: inherit; background: #151b23;
+           border: 1px solid #232c37; border-radius: 14px; padding: 18px 18px 16px;
+           transition: transform .15s ease, border-color .15s ease; }
+  a.card:hover { transform: translateY(-2px); border-color: #3d5a72; }
+  .tag { display: inline-block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+         color: #7fd1c4; border: 1px solid #2c4a48; border-radius: 999px; padding: 2px 8px; margin-bottom: 10px; }
+  .tag.pbr { color: #d9b38c; border-color: #4a3a2a; }
+  .tag.old { color: #93a1af; border-color: #2c3540; }
+  h2 { font-size: 18px; margin: 0 0 6px; }
+  .desc { color: #a7b4c1; font-size: 14px; line-height: 1.45; margin: 0 0 12px; }
+  .meta { font-size: 12px; color: #6f7d8b; }
+  footer { margin-top: 32px; font-size: 12px; color: #6f7d8b; line-height: 1.6; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Jail block — reconstruction variants</h1>
+  <p class="sub">Same layout and nav, three material treatments. Tap a card; walk mode is button 1.</p>
+  <div class="grid">
+    <a class="card" href="hybrid/web/viewer_1.html">
+      <span class="tag">Recommended</span>
+      <h2>Hybrid</h2>
+      <p class="desc">Original teal block / red brick / pink tile palette with generated normal,
+      roughness and AO detail. Bars, gate, bed and pipes use real PBR.</p>
+      <div class="meta">2.3 MB · palette + surface relief</div>
+    </a>
+    <a class="card" href="pbr/web/viewer_1.html">
+      <span class="tag pbr">Separate scene</span>
+      <h2>Photoreal stone</h2>
+      <p class="desc">Full CC0 Poly Haven PBR throughout. Kept as its own map — walls read as
+      stone rather than the reference teal.</p>
+      <div class="meta">4.1 MB · full photoreal</div>
+    </a>
+    <a class="card" href="cartoon/web/viewer_1.html">
+      <span class="tag old">Original</span>
+      <h2>Cartoon</h2>
+      <p class="desc">The first pass: flat procedural colours, no maps. Kept for comparison.</p>
+      <div class="meta">3.0 MB · flat palette</div>
+    </a>
+  </div>
+  <footer>GLB + manifest live next to each viewer (<code>3d/scene_1.glb</code>, <code>3d/scene_1.json</code>).
+  Software previews: <code>hybrid/preview/</code>, <code>pbr/preview/</code>, <code>cartoon/preview/</code>.</footer>
+</main>
+</body>
+</html>

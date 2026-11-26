@@ -1,12 +1,16 @@
-# Bridge-demolition chunk render worker (Kaggle CPU).
-# Render frames __START__-__END__ of the baked shot to /kaggle/working/__OUT__.mp4
+# Bridge/overpass demolition chunk render worker (Kaggle CPU).
+# Render frames __START__-__END__ of the __SHOT__ shot to /kaggle/working/__OUT__.mp4
 # with ANGLE-EGL and a SwiftShader fallback.  __VALIDATE__ renders diagnostic
-# stills at frames 0 and 260 first.
+# stills across the whole clip first.
 import glob, json, os, shutil, subprocess, time
 
 START, END = __START__, __END__
 OUT = "__OUT__"
+SHOT = "__SHOT__"
+FRAMES = __FRAMES__
 VALIDATE = __VALIDATE__
+PROPS = '--props=' + json.dumps(json.dumps({'shot': SHOT}))
+PUB = 'remotion/public/%s' % SHOT
 
 
 def sh(cmd, check=False, cwd=None):
@@ -60,9 +64,9 @@ os.makedirs(WORK, exist_ok=True)
 sh('cp -a "%s/." "%s/"' % (ENG, WORK), check=True)
 ENG = WORK
 print('project:', ENG, flush=True)
-sh('ls -la remotion/public/bridge', cwd=ENG)
+sh('ls -la %s' % PUB, cwd=ENG)
 ASSETS = ('debris.glb', 'sim.json', 'motion.bin')
-sizes = {f: os.path.getsize(os.path.join(ENG, 'remotion/public/bridge', f)) for f in ASSETS}
+sizes = {f: os.path.getsize(os.path.join(ENG, PUB, f)) for f in ASSETS}
 if sizes['debris.glb'] < 1_000_000:
     raise SystemExit('broken dataset payload: %r' % sizes)
 
@@ -99,10 +103,10 @@ sh("node --input-type=module -e \"import * as THREE from 'three';"
 
 if VALIDATE:
     print('=== diagnostic stills ===', flush=True)
-    for fr in (0, 260):
+    for fr in (0, FRAMES // 2, FRAMES - 1):
         p = '/kaggle/working/still-%03d.png' % fr
         sh('npx remotion still remotion/src/index.ts DestructionBridge '
-           '%s --frame=%d --gl=angle-egl --log=error' % (p, fr), cwd=ENG)
+           '%s --frame=%d %s --gl=angle-egl --log=error' % (p, fr, PROPS), cwd=ENG)
         print('still', fr, os.path.getsize(p) if os.path.exists(p) else 'MISSING', flush=True)
 
 print('=== render chunk %d-%d ===' % (START, END), flush=True)
@@ -110,8 +114,8 @@ out = '/kaggle/working/%s.mp4' % OUT
 if os.path.exists(out):
     os.remove(out)
 LOG = '/kaggle/working/render.log'
-base = ('npx remotion render remotion/src/index.ts DestructionBridge %s --frames=%d-%d '
-        '--concurrency=4 --log=error --timeout=900000 --public-dir=remotion/public') % (out, START, END)
+base = ('npx remotion render remotion/src/index.ts DestructionBridge %s --frames=%d-%d %s '
+        '--concurrency=4 --log=error --timeout=900000 --public-dir=remotion/public') % (out, START, END, PROPS)
 t0 = time.time()
 sh('( %s --gl=angle-egl ) > %s 2>&1 || ( echo "[retry swangle]" >> %s; %s --gl=swangle >> %s 2>&1 )'
    % (base, LOG, LOG, base, LOG), cwd=ENG)

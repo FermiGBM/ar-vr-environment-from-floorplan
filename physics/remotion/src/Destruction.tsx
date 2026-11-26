@@ -42,6 +42,7 @@ const ShotScene: React.FC<{ shot: string }> = ({ shot }) => {
 
   const [fx, setFx] = useState<Fx | null>(null);
   const [handle] = useState(() => delayRender(`loading ${shot}`));
+  const pending = useRef<number | null>(handle);
 
   // ---- load once ---------------------------------------------------------
   useLayoutEffect(() => {
@@ -51,18 +52,24 @@ const ShotScene: React.FC<{ shot: string }> = ({ shot }) => {
       sim: staticFile(`${shot}/sim.json`),
     })
       .then((loaded) => {
-        if (!alive) return;
-        setFx(loaded);
-        continueRender(handle);
+        if (alive) setFx(loaded);
       })
       .catch((err) => {
-        console.error(err);
-        continueRender(handle);
+        console.error('destruction load failed', err);
+        if (pending.current !== null) {
+          continueRender(pending.current);
+          pending.current = null;
+        }
       });
     return () => {
       alive = false;
+      // never leave the render waiting on a handle this component owns
+      if (pending.current !== null) {
+        continueRender(pending.current);
+        pending.current = null;
+      }
     };
-  }, [shot, handle]);
+  }, [shot]);
 
   // ---- renderer look -----------------------------------------------------
   useLayoutEffect(() => {
@@ -105,7 +112,16 @@ const ShotScene: React.FC<{ shot: string }> = ({ shot }) => {
     const local = Math.round((frame * (sim.fps ?? 30)) / fps);
     fx.update(local);
     invalidate();
-  }, [fx, frame, fps, invalidate]);
+    // Remotion screenshots as soon as every delayRender handle is continued.
+    // The group was only just attached, so draw once explicitly: otherwise the
+    // first captured frame (stills, the first frame of each render chunk) comes
+    // out empty because the canvas has not painted the scene yet.
+    if (pending.current !== null) {
+      gl.render(scene, camera);
+      continueRender(pending.current);
+      pending.current = null;
+    }
+  }, [fx, frame, fps, gl, scene, camera, invalidate]);
 
   const focus = useMemo(() => {
     if (!fx) return { center: new THREE.Vector3(), radius: 40 };

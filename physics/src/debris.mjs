@@ -251,7 +251,7 @@ const PIECE_LOOKUP = /* glsl */ `
   vec4 pieceQuat = texture2D(uPieces, pieceUV(1.0));
 `;
 
-function patchMaterial(mat, uniforms) {
+export function patchMaterial(mat, uniforms) {
   mat.onBeforeCompile = (shader) => {
     shader.uniforms.uPieces = uniforms.uPieces;
     shader.uniforms.uPieceCount = uniforms.uPieceCount;
@@ -267,20 +267,30 @@ function patchMaterial(mat, uniforms) {
       }
     ` + shader.vertexShader;
 
-    // MeshDepthMaterial (shadow pass) has no <beginnormal_vertex>, so the
-    // lookup has to be emitted wherever it is actually needed.
-    const hasNormals = shader.vertexShader.includes('#include <beginnormal_vertex>');
-    if (hasNormals) {
+    // Declare the per-piece transform once, at the top of main().  The depth /
+    // shadow shader only contains <beginnormal_vertex> inside
+    // `#ifdef USE_DISPLACEMENTMAP`; anchoring the lookup there leaves it out of
+    // the compiled program (no displacement map), so `transformed` would use
+    // undeclared `pieceQuat` / `piecePos`.  Shaders without `void main() {`
+    // fall back to declaring the lookup at the replacement sites.
+    const atMain = shader.vertexShader.includes('void main() {');
+    if (atMain) {
+      shader.vertexShader = shader.vertexShader.replace(
+        'void main() {',
+        `void main() {\n${PIECE_LOOKUP}`,
+      );
+    }
+    const lookup = atMain ? '' : PIECE_LOOKUP;
+
+    if (shader.vertexShader.includes('#include <beginnormal_vertex>')) {
       shader.vertexShader = shader.vertexShader.replace(
         '#include <beginnormal_vertex>',
-        `${PIECE_LOOKUP}\n vec3 objectNormal = qrot(pieceQuat, normal);`,
+        `${lookup}\n vec3 objectNormal = qrot(pieceQuat, normal);`,
       );
     }
     shader.vertexShader = shader.vertexShader.replace(
       '#include <begin_vertex>',
-      hasNormals
-        ? 'vec3 transformed = qrot(pieceQuat, position) + piecePos;'
-        : `${PIECE_LOOKUP}\n vec3 transformed = qrot(pieceQuat, position) + piecePos;`,
+      `${lookup}\n vec3 transformed = qrot(pieceQuat, position) + piecePos;`,
     );
   };
   // distinct program per material, but keep depth in sync

@@ -7,7 +7,7 @@
   "scripts": {
     "bake": "node src/bake.mjs",
     "demo": "node src/make_demo_bridge.mjs",
-    "test": "node test/fracture.test.mjs && node test/bake.test.mjs",
+    "test": "node test/fracture.test.mjs && node test/bake.test.mjs && node test/shader.test.mjs",
     "stats": "node tools/simstats.mjs out/bridge",
     "serve": "python3 -m http.server 8123 --bind 127.0.0.1",
     "assets": "node remotion/scripts/prepare.mjs",

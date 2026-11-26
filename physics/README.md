@@ -207,11 +207,11 @@ Shell or CI.
 ## Rendering on Kaggle
 
 `tools/kaggle/` fans a shot out over free Kaggle CPU sessions (5 per account,
-27-frame chunks) and concatenates the chunks losslessly. The published bridge
-shot — 270 frames, 9 s, 1080p30 — was rendered this way in two waves on one
-account; the whole pipeline, including the dataset layout and the two shader
-pitfalls that cost a blank first frame, is documented in
-[`tools/kaggle/README.md`](tools/kaggle/README.md).
+27-frame chunks) and concatenates the chunks losslessly. Both published shots
+were rendered this way: the bridge (270 frames, 9 s) and the overpass (240
+frames, 8 s), each in two waves on one account. The whole pipeline, including
+the dataset layout and the two shader pitfalls that cost a blank first frame,
+is documented in [`tools/kaggle/README.md`](tools/kaggle/README.md).
 
 ## Tests
 

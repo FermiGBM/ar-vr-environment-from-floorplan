@@ -2,6 +2,7 @@ node_modules/
 build/
 .remotion/
 out/
+tools/kaggle/kernels/
 remotion/public/*/
 !remotion/public/.gitkeep
 *.log

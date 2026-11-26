@@ -14,7 +14,7 @@ dist/
   package.json  package-lock.json  tsconfig.json  remotion.config.ts
   src/debris.mjs  src/debris.d.mts
   remotion/src/index.ts  remotion/src/Root.tsx  remotion/src/Destruction.tsx
-  remotion/public/bridge/{debris.glb,sim.json,motion.bin,shot.json}
+  remotion/public/<shot>/{debris.glb,sim.json,motion.bin,shot.json}
   dataset-metadata.json      # {"title":"…","id":"<account>/physics-demo",
                              #  "licenses":[{"name":"CC0-1.0"}]}
 ```
@@ -26,14 +26,16 @@ kaggle datasets version -p dist -r zip -m "new shot"    # every change
 
 ## 2. Push chunk kernels
 
-`gen.py` writes `kernels/physics-chunk-<n>/{worker.py,kernel-metadata.json}` for
-10 non-overlapping 27-frame slices of a 270-frame shot (edit `CHUNKS` for other
-lengths). Kernel metadata already points at `<account>/physics-demo`.
+`gen.py` writes `kernels/physics-chunk-<n>/{worker.py,kernel-metadata.json}`. The
+frame count comes from the baked `out/<shot>/sim.json`, so it splits any shot
+into 27-frame slices on its own (the 240-frame overpass becomes 9 chunks). Set
+`SHOT` to choose the shot; it defaults to `bridge`. Kernel metadata already
+points at `<account>/physics-demo`.
 
 ```bash
-python3 tools/kaggle/gen.py validate <account>        # stills + 1-frame smoke test
-python3 tools/kaggle/gen.py chunks <account> 1 4      # push with: kaggle kernels push -p kernels/physics-chunk-1
-python3 tools/kaggle/gen.py chunks <account> 5 10     # once slots free up
+SHOT=overpass python3 tools/kaggle/gen.py validate <account>   # 3 stills + 1-frame smoke test
+SHOT=overpass python3 tools/kaggle/gen.py chunks <account> 1 4 # push with: kaggle kernels push -p kernels/physics-chunk-1
+SHOT=overpass python3 tools/kaggle/gen.py chunks <account> 5 9 # once slots free up
 ```
 
 Per session the worker installs Chromium's system libraries, runs
@@ -48,19 +50,19 @@ account (or older work) is still holding sessions.
 ## 3. Fetch and stitch
 
 ```bash
-for n in $(seq 1 10); do
+for n in $(seq 1 9); do
   kaggle kernels output <account>/physics-chunk-$n -p out/c$n
 done
 
-for n in $(seq 1 10); do echo "file $PWD/out/c$n/$(ls out/c$n/*.mp4)" >> list.txt; done
-ffmpeg -f concat -safe 0 -i list.txt -c copy bridge.mp4
+for n in $(seq 1 9); do echo "file $PWD/out/c$n/$(ls out/c$n/*.mp4)" >> list.txt; done
+ffmpeg -f concat -safe 0 -i list.txt -c copy render.mp4
 ```
 
-Verify `frame= 270` and `Duration: 00:00:09.00` before publishing, then:
-
-```bash
-node tools/publish_video.mjs --video bridge.mp4 --stills out --poster frame-108.png
-```
+Verify `frame= 240` and `Duration: 00:00:08.00` (frame count / fps) before
+publishing. A clip kept inside the shot folder — `out/<shot>/render.mp4` plus a
+`poster.jpg` — is picked up by `publish_site.mjs` and by the preview's
+lightbox, which probes `shots/<shot>/render.mp4` first and falls back to
+`media/<shot>.mp4`.
 
 ## Gotchas
 

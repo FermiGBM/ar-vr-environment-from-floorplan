@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Destruction preview</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0a0c0e;
+        --panel: rgba(16, 20, 24, 0.82);
+        --line: rgba(255, 255, 255, 0.12);
+        --fg: #e8edf2;
+        --dim: #8b98a5;
+        --accent: #6fd3ff;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--fg);
+        font: 13px/1.4 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        -webkit-tap-highlight-color: transparent;
+      }
+      canvas { display: block; touch-action: none; }
+
+      #hud {
+        position: fixed;
+        inset: auto 0 0 0;
+        padding: 12px max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        background: linear-gradient(to top, rgba(6, 8, 10, 0.9), rgba(6, 8, 10, 0));
+        pointer-events: none;
+      }
+      #hud > * { pointer-events: auto; }
+
+      .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+      button {
+        appearance: none;
+        border: 1px solid var(--line);
+        background: var(--panel);
+        color: var(--fg);
+        border-radius: 10px;
+        padding: 9px 13px;
+        font: inherit;
+        font-weight: 600;
+        min-height: 40px;
+        min-width: 40px;
+        cursor: pointer;
+        backdrop-filter: blur(8px);
+      }
+      button:hover { border-color: rgba(255, 255, 255, 0.28); }
+      button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+      button:disabled { opacity: 0.45; cursor: default; }
+
+      .timeline { flex: 1 1 260px; display: flex; align-items: center; gap: 10px; }
+      input[type="range"] {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 100%;
+        height: 26px;
+        background: transparent;
+      }
+      input[type="range"]::-webkit-slider-runnable-track {
+        height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.18);
+      }
+      input[type="range"]::-moz-range-track {
+        height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.18);
+      }
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 18px; height: 18px; margin-top: -7px;
+        border-radius: 50%; background: var(--accent);
+        border: 2px solid #06131a;
+        box-shadow: 0 0 0 1px rgba(111, 211, 255, 0.45);
+      }
+      input[type="range"]::-moz-range-thumb {
+        width: 16px; height: 16px; border-radius: 50%;
+        background: var(--accent); border: 2px solid #06131a;
+      }
+
+      .readout {
+        font-variant-numeric: tabular-nums;
+        color: var(--dim);
+        white-space: nowrap;
+        font-size: 12px;
+      }
+      .readout b { color: var(--fg); font-weight: 600; }
+
+      #title {
+        position: fixed;
+        top: max(12px, env(safe-area-inset-top));
+        left: max(12px, env(safe-area-inset-left));
+        padding: 8px 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--panel);
+        backdrop-filter: blur(8px);
+        font-size: 12px;
+        color: var(--dim);
+        max-width: min(60vw, 420px);
+      }
+      #title b { color: var(--fg); }
+      #title .stats { display: block; margin-top: 2px; font-size: 11px; }
+
+      #loading {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: var(--bg);
+        transition: opacity 0.35s ease;
+        z-index: 10;
+        text-align: center;
+        padding: 24px;
+      }
+      #loading.hidden { opacity: 0; pointer-events: none; }
+      .spinner {
+        width: 26px; height: 26px; margin: 0 auto 12px;
+        border: 2px solid rgba(255, 255, 255, 0.18);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 0.9s linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      #loading .err { color: #ff9b8a; max-width: 60ch; font-family: ui-monospace, monospace; font-size: 12px; white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <div id="loading">
+      <div>
+        <div class="spinner"></div>
+        <div id="loading-text">Loading shot…</div>
+      </div>
+    </div>
+
+    <div id="title">
+      <b id="shot-name">bridge</b>
+      <span class="stats" id="shot-stats"></span>
+    </div>
+
+    <div id="hud">
+      <div class="row">
+        <button id="play" aria-pressed="true" title="Play / pause (space)">Pause</button>
+        <div class="timeline">
+          <input id="scrub" type="range" min="0" max="1" step="1" value="0" aria-label="Frame" />
+          <div class="readout"><b id="frame">0</b> / <span id="frames">0</span> · <span id="time">0.00s</span></div>
+        </div>
+        <button id="orbit" aria-pressed="false" title="Auto-orbit">Orbit</button>
+        <button id="reset" title="Reset camera">Reset</button>
+      </div>
+    </div>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "../node_modules/three/build/three.module.js",
+          "three/addons/": "../node_modules/three/examples/jsm/"
+        }
+      }
+    </script>
+
+    <script type="module">
+      import * as THREE from 'three';
+      import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+      import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+      import { loadDestruction, frameCamera } from '../src/debris.mjs';
+
+      const params = new URLSearchParams(location.search);
+      const base = (params.get('shot') ?? '../out/bridge/').replace(/\/?$/, '/');
+      // ?hide=particles,rings,flashes,decals,water,bed
+      const hide = new Set((params.get('hide') ?? '').split(',').filter(Boolean));
+
+      const $ = (id) => document.getElementById(id);
+      const loading = $('loading');
+
+      // ---- renderer -------------------------------------------------------
+      const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+      renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+      renderer.setSize(innerWidth, innerHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 0.92;
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      document.body.appendChild(renderer.domElement);
+
+      const scene = new THREE.Scene();
+      scene.fog = new THREE.Fog('#26333c', 120, 460);
+
+      // vertical gradient dome so the water has a horizon to meet
+      const sky = new THREE.Mesh(
+        new THREE.SphereGeometry(1800, 32, 16),
+        new THREE.ShaderMaterial({
+          side: THREE.BackSide,
+          depthWrite: false,
+          fog: false,
+          uniforms: {
+            uTop: { value: new THREE.Color('#0b1218') },
+            uHorizon: { value: new THREE.Color('#26333c') },
+            uBottom: { value: new THREE.Color('#131a1f') },
+          },
+          vertexShader: `varying vec3 vDir;
+            void main() {
+              vDir = normalize(position);
+              gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }`,
+          fragmentShader: `uniform vec3 uTop, uHorizon, uBottom;
+            varying vec3 vDir;
+            void main() {
+              float h = vDir.y;
+              vec3 c = h > 0.0
+                ? mix(uHorizon, uTop, pow(clamp(h, 0.0, 1.0), 0.55))
+                : mix(uHorizon, uBottom, pow(clamp(-h, 0.0, 1.0), 0.7));
+              gl_FragColor = vec4(c, 1.0);
+            }`,
+        }),
+      );
+      sky.frustumCulled = false;
+      sky.renderOrder = -1;
+      scene.add(sky);
+
+      const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 4000);
+
+      const pmrem = new THREE.PMREMGenerator(renderer);
+      scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+      pmrem.dispose();
+
+      const sun = new THREE.DirectionalLight('#fff2dd', 2.3);
+      sun.castShadow = true;
+      sun.shadow.mapSize.set(2048, 2048);
+      sun.shadow.bias = -0.0008;
+      sun.shadow.normalBias = 0.02;
+      scene.add(sun, sun.target);
+
+      scene.add(new THREE.HemisphereLight('#9fc6d8', '#2a2620', 0.35));
+
+      // ---- controls -------------------------------------------------------
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.08;
+      controls.maxPolarAngle = Math.PI * 0.495;
+      controls.minDistance = 4;
+      controls.maxDistance = 900;
+
+      let fx = null;
+      let home = null;
+
+      // ---- playback -------------------------------------------------------
+      let frame = 0;
+      let playing = true;
+      let last = performance.now();
+      let acc = 0;
+
+      const scrub = $('scrub');
+
+      function setFrame(f) {
+        if (!fx) return;
+        frame = Math.max(0, Math.min(fx.sim.frames, f));
+        fx.update(frame);
+        scrub.value = String(frame);
+        $('frame').textContent = String(frame);
+        $('time').textContent = (frame / fx.sim.fps).toFixed(2) + 's';
+      }
+
+      function setPlaying(on) {
+        playing = on;
+        $('play').textContent = on ? 'Pause' : 'Play';
+        $('play').setAttribute('aria-pressed', String(on));
+      }
+
+      $('play').addEventListener('click', () => {
+        if (frame >= fx.sim.frames) setFrame(0);
+        setPlaying(!playing);
+      });
+      scrub.addEventListener('input', () => {
+        setPlaying(false);
+        setFrame(Number(scrub.value));
+      });
+      $('orbit').addEventListener('click', (e) => {
+        const on = e.currentTarget.getAttribute('aria-pressed') !== 'true';
+        e.currentTarget.setAttribute('aria-pressed', String(on));
+        controls.autoRotate = on;
+        controls.autoRotateSpeed = 0.45;
+      });
+      $('reset').addEventListener('click', () => {
+        if (!home) return;
+        camera.position.copy(home.position);
+        controls.target.copy(home.target);
+        controls.update();
+      });
+
+      addEventListener('keydown', (e) => {
+        if (e.code === 'Space') { e.preventDefault(); $('play').click(); }
+        if (e.code === 'ArrowRight') { setPlaying(false); setFrame(frame + 1); }
+        if (e.code === 'ArrowLeft') { setPlaying(false); setFrame(frame - 1); }
+      });
+
+      addEventListener('resize', () => {
+        camera.aspect = innerWidth / innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(innerWidth, innerHeight);
+      });
+
+      // ---- load -----------------------------------------------------------
+      try {
+        fx = await loadDestruction({
+          glb: base + 'debris.glb',
+          sim: base + 'sim.json',
+        });
+        scene.add(fx.group);
+        for (const name of hide) {
+          const obj = fx.parts?.[name];
+          if (obj) obj.visible = false;
+        }
+
+        const { center, radius } = frameCamera(camera, fx.sim, { zoom: 1.5, dir: [0.62, 0.34, 1] });
+        controls.target.copy(center);
+        controls.update();
+        home = { position: camera.position.clone(), target: center.clone() };
+
+        // shadow camera sized to the shot
+        sun.position.copy(center).add(new THREE.Vector3(0.45, 0.75, 0.3).normalize().multiplyScalar(190));
+        sun.target.position.copy(center);
+        const d = radius * 1.15;
+        const sc = sun.shadow.camera;
+        sc.left = -d; sc.right = d; sc.top = d; sc.bottom = -d;
+        sc.near = 1; sc.far = radius * 8 + 260;
+        sc.updateProjectionMatrix();
+
+        const s = fx.sim;
+        $('shot-name').textContent = s.asset ?? 'shot';
+        $('shot-stats').textContent =
+          `${s.bodies.length} pieces · ${s.frames} frames @ ${s.fps}fps · ` +
+          `${s.splashes?.length ?? 0} splashes · ${s.decals?.length ?? 0} impacts`;
+        $('frames').textContent = String(s.frames);
+        scrub.max = String(s.frames);
+        const start = Number(params.get('frame') ?? 0);
+        setFrame(start > 0 ? start : 0);
+        if (start > 0) setPlaying(false);
+        if (params.get('debug')) {
+          const g = fx.parts?.particles?.geometry;
+          const a = g?.attributes ?? {};
+          document.title = JSON.stringify({
+            names: Object.keys(a),
+            tint: a.aTint ? Array.from(a.aTint.array.slice(0, 9)) : null,
+            vel: a.aVel ? Array.from(a.aVel.array.slice(0, 9)) : null,
+            count: a.position?.count,
+          });
+        }
+        loading.classList.add('hidden');
+      } catch (err) {
+        console.error(err);
+        $('loading-text').textContent = 'Failed to load';
+        const pre = document.createElement('div');
+        pre.className = 'err';
+        pre.textContent = String(err?.stack ?? err);
+        $('loading').appendChild(pre);
+        throw err;
+      }
+
+      // ---- loop -----------------------------------------------------------
+      renderer.setAnimationLoop((now) => {
+        const dt = Math.min(0.1, (now - last) / 1000);
+        last = now;
+        if (fx) {
+          if (playing) {
+            acc += dt;
+            const step = 1 / fx.sim.fps;
+            while (acc >= step) {
+              acc -= step;
+              if (frame >= fx.sim.frames) { setPlaying(false); acc = 0; break; }
+              setFrame(frame + 1);
+            }
+          }
+          if (controls.autoRotate) controls.update();
+          sky.position.copy(camera.position);
+        }
+        renderer.render(scene, camera);
+      });
+    </script>
+  </body>
+</html>

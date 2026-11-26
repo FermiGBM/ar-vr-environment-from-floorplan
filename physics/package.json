@@ -1,0 +1,40 @@
+{
+  "name": "@arvr/physics-sim",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Deterministic destruction / water physics baker for Three.js + Remotion",
+  "scripts": {
+    "bake": "node src/bake.mjs",
+    "demo": "node src/make_demo_bridge.mjs",
+    "test": "node test/fracture.test.mjs && node test/bake.test.mjs",
+    "stats": "node tools/simstats.mjs out/bridge",
+    "serve": "python3 -m http.server 8123 --bind 127.0.0.1",
+    "assets": "node remotion/scripts/prepare.mjs",
+    "studio": "remotion studio",
+    "render": "remotion render",
+    "still": "remotion still",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.14.0",
+    "@gltf-transform/core": "^4.1.0",
+    "@gltf-transform/extensions": "^4.1.0",
+    "@react-three/fiber": "^9.0.0",
+    "@remotion/cli": "^4.0.547",
+    "@remotion/three": "^4.0.547",
+    "earcut": "^3.0.0",
+    "jpeg-js": "^0.4.4",
+    "pngjs": "^7.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "remotion": "^4.0.547",
+    "three": "^0.160.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.3",
+    "@types/react-dom": "^19.3.0",
+    "@types/three": "^0.187.0",
+    "typescript": "^7.0.2"
+  }
+}

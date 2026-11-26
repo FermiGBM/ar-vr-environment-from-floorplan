@@ -1,0 +1,7 @@
+node_modules/
+build/
+.remotion/
+out/
+remotion/public/*/
+!remotion/public/.gitkeep
+*.log

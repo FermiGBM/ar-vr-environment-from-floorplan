@@ -1,0 +1,107 @@
+{
+  "asset": "bridge.glb",
+  "up": "y",
+  "fps": 30,
+  "duration": 7,
+  "seed": 20261126,
+  "fracture": {
+    "pieces": 260,
+    "density": 2400,
+    "siteShare": 0.6,
+    "minVolume": 0.0004
+  },
+  "joints": {
+    "gap": 0.06,
+    "breakDistance": 0.2,
+    "breakSpeed": 6,
+    "anchor": true
+  },
+  "targets": [
+    {
+      "name": "deck",
+      "match": "deck|asphalt|girder|brace",
+      "pieces": 150
+    },
+    {
+      "name": "piers",
+      "match": "pier|abutment",
+      "pieces": 60
+    },
+    {
+      "name": "railings",
+      "match": "railing|lamp",
+      "pieces": 90
+    }
+  ],
+  "charges": [
+    {
+      "name": "implode-core",
+      "time": 1,
+      "position": [
+        0,
+        -0.6,
+        0
+      ],
+      "radius": 26,
+      "power": 1.15,
+      "upBias": 0.02,
+      "implode": true,
+      "implodeFrames": 9,
+      "visible": false,
+      "dust": 60,
+      "dustLife": 3.2
+    }
+  ],
+  "shots": [
+    {
+      "time": 0.12,
+      "from": [
+        -20,
+        3.2,
+        11
+      ],
+      "to": [
+        -9,
+        3.4,
+        3.55
+      ],
+      "kind": "bullet",
+      "size": 0.1,
+      "chips": 5,
+      "spread": 0.7
+    },
+    {
+      "time": 0.24,
+      "from": [
+        -20,
+        3,
+        11
+      ],
+      "to": [
+        -9,
+        1.8,
+        3.55
+      ],
+      "kind": "bullet",
+      "size": 0.09,
+      "chips": 4,
+      "spread": 0.6
+    }
+  ],
+  "water": {
+    "level": -7,
+    "extent": [
+      220,
+      220
+    ],
+    "buoyancy": 1.5,
+    "drag": 2.2,
+    "splashSpeed": 2
+  },
+  "ground": {
+    "level": -12.5,
+    "extent": 240
+  },
+  "killY": -40,
+  "releaseAll": true
+}

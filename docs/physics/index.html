@@ -129,6 +129,44 @@
       }
       @keyframes spin { to { transform: rotate(360deg); } }
       #loading .err { color: #ff9b8a; max-width: 60ch; font-family: ui-monospace, monospace; font-size: 12px; white-space: pre-wrap; }
+
+      #title .render {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 6px;
+        padding: 5px 10px;
+        min-height: 0;
+        font-size: 11px;
+        font-weight: 600;
+        border-radius: 8px;
+        color: var(--accent);
+      }
+
+      #film {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        display: grid;
+        place-items: center;
+        padding: 4vmin;
+        background: rgba(4, 8, 12, 0.92);
+        backdrop-filter: blur(4px);
+      }
+      #film[hidden] { display: none; }
+      #film video {
+        width: auto;
+        max-width: min(96vw, 1600px);
+        max-height: 86vh;
+        border-radius: 10px;
+        background: #000;
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.65);
+      }
+      #film .close {
+        position: absolute;
+        top: max(12px, env(safe-area-inset-top));
+        right: max(12px, env(safe-area-inset-right));
+      }
     </style>
   </head>
   <body>
@@ -142,6 +180,15 @@
     <div id="title">
       <b id="shot-name">bridge</b>
       <span class="stats" id="shot-stats"></span>
+      <button class="render" id="film-open" type="button">▶ watch the render</button>
+    </div>
+
+    <div id="film" hidden>
+      <button class="close" id="film-close" type="button" aria-label="Close render">✕</button>
+      <video id="film-video" controls loop muted playsinline preload="metadata"
+             poster="media/bridge-poster.jpg">
+        <source src="media/bridge.mp4" type="video/mp4" />
+      </video>
     </div>
 
     <div id="hud">
@@ -383,6 +430,31 @@
         }
         renderer.render(scene, camera);
       });
+    </script>
+
+    <script>
+      // Rendered shot (Remotion + Three.js, baked physics) in a lightbox.
+      (() => {
+        const film = document.getElementById('film');
+        const video = document.getElementById('film-video');
+        const open = document.getElementById('film-open');
+        const close = document.getElementById('film-close');
+        if (!film || !video || !open || !close) return;
+
+        const show = () => {
+          film.hidden = false;
+          video.currentTime = 0;
+          video.play().catch(() => {});
+        };
+        const hide = () => {
+          film.hidden = true;
+          video.pause();
+        };
+        open.addEventListener('click', show);
+        close.addEventListener('click', hide);
+        film.addEventListener('click', (e) => { if (e.target === film) hide(); });
+        addEventListener('keydown', (e) => { if (e.key === 'Escape' && !film.hidden) hide(); });
+      })();
     </script>
   </body>
 </html>

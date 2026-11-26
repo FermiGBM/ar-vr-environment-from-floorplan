@@ -251,7 +251,7 @@ const PIECE_LOOKUP = /* glsl */ `
   vec4 pieceQuat = texture2D(uPieces, pieceUV(1.0));
 `;
 
-function patchMaterial(mat, uniforms) {
+export function patchMaterial(mat, uniforms) {
   mat.onBeforeCompile = (shader) => {
     shader.uniforms.uPieces = uniforms.uPieces;
     shader.uniforms.uPieceCount = uniforms.uPieceCount;

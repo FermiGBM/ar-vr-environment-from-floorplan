@@ -7,7 +7,7 @@
   "scripts": {
     "bake": "node src/bake.mjs",
     "demo": "node src/make_demo_bridge.mjs",
-    "test": "node test/fracture.test.mjs && node test/bake.test.mjs && node test/shader.test.mjs",
+    "test": "node test/fracture.test.mjs && node test/texture.test.mjs && node test/roadtile.test.mjs && node test/bake.test.mjs && node test/shader.test.mjs",
     "stats": "node tools/simstats.mjs out/bridge",
     "serve": "python3 -m http.server 8123 --bind 127.0.0.1",
     "assets": "node remotion/scripts/prepare.mjs",
@@ -25,6 +25,7 @@
     "@remotion/three": "^4.0.547",
     "earcut": "^3.0.0",
     "jpeg-js": "^0.4.4",
+    "meshoptimizer": "^1.1.1",
     "pngjs": "^7.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

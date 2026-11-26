@@ -44,8 +44,9 @@ function imageAverage(bytes, mime) {
  */
 export async function readGLB(input, opts = {}) {
   const io = new NodeIO();
-  const bytes = typeof input === 'string' ? new Uint8Array(await readFile(input)) : input;
-  const doc = await io.readBinary(bytes);
+  const doc = typeof input === 'string' && input.toLowerCase().endsWith('.gltf')
+    ? await io.read(input) // resolves the .bin and image files next to the .gltf
+    : await io.readBinary(typeof input === 'string' ? new Uint8Array(await readFile(input)) : input);
   const root = doc.getRoot();
 
   // material table (deduplicated by gltf-transform property)
@@ -73,6 +74,13 @@ export async function readGLB(input, opts = {}) {
         texData = { bytes: img, mime };
       }
     }
+    // normal / metallic-roughness / occlusion maps travel with the material so
+    // the debris keeps the source surface detail, not just its base colour.
+    const blobOf = (t) => {
+      const img = t?.getImage();
+      if (!img || !img.length) return null;
+      return { bytes: img, mime: t.getMimeType() || 'image/png' };
+    };
     const s = avg ?? color;
     const info = {
       name: mat.getName() || `material_${materials.length}`,
@@ -82,6 +90,11 @@ export async function readGLB(input, opts = {}) {
       emissive: mat.getEmissiveFactor().slice(),
       avg: [s[0], s[1], s[2]],
       texture: texData,
+      normalTexture: blobOf(mat.getNormalTexture()),
+      normalScale: mat.getNormalScale(),
+      metallicRoughnessTexture: blobOf(mat.getMetallicRoughnessTexture()),
+      occlusionTexture: blobOf(mat.getOcclusionTexture()),
+      occlusionStrength: mat.getOcclusionStrength(),
       doubleSided: mat.getDoubleSided(),
       alphaMode: mat.getAlphaMode(),
     };
@@ -169,7 +182,18 @@ export async function writeGLB(outPath, meshes, materials) {
 
   const surfaceMats = [];
   const breakMats = [];
-  const texCache = new Map();
+  const blobTex = new Map();
+
+  // One GLTF texture per distinct image blob (shared images stay shared).
+  const texFor = (role, t) => {
+    if (!t?.bytes || !t.bytes.length) return null;
+    let tex = blobTex.get(t.bytes);
+    if (!tex) {
+      tex = doc.createTexture(role).setImage(t.bytes).setMimeType(t.mime || 'image/png');
+      blobTex.set(t.bytes, tex);
+    }
+    return tex;
+  };
 
   materials.forEach((m, i) => {
     const sm = doc.createMaterial(`${m.name || `mat_${i}`}`);
@@ -180,15 +204,20 @@ export async function writeGLB(outPath, meshes, materials) {
     if (m.emissive && m.emissive.some((v) => v > 0)) sm.setEmissiveFactor(m.emissive);
     if (m.alphaMode === 'BLEND' || m.alphaMode === 'MASK') sm.setAlphaMode(m.alphaMode);
     sm.setDoubleSided(!!m.doubleSided);
-    if (m.texture?.bytes) {
-      const key = `${i}:${m.texture.bytes.length}`;
-      let tex = texCache.get(key);
-      if (!tex) {
-        const img = doc.createTexture(`${m.name}_baseColor`).setImage(m.texture.bytes).setMimeType(m.texture.mime);
-        tex = doc.createTextureInfo().setTexture(img);
-        texCache.set(key, tex);
-      }
-      sm.setBaseColorTexture(tex);
+
+    const base = texFor(`${m.name}_baseColor`, m.texture);
+    if (base) sm.setBaseColorTexture(base);
+    const nrm = texFor(`${m.name}_normal`, m.normalTexture);
+    if (nrm) {
+      sm.setNormalTexture(nrm);
+      if (m.normalScale != null) sm.setNormalScale(m.normalScale);
+    }
+    const mr = texFor(`${m.name}_metallicRoughness`, m.metallicRoughnessTexture);
+    if (mr) sm.setMetallicRoughnessTexture(mr);
+    const ao = texFor(`${m.name}_occlusion`, m.occlusionTexture);
+    if (ao) {
+      sm.setOcclusionTexture(ao);
+      if (m.occlusionStrength != null) sm.setOcclusionStrength(m.occlusionStrength);
     }
     surfaceMats.push(sm);
 

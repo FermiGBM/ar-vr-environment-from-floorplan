@@ -24,8 +24,9 @@ const exists = (p) => access(p).then(() => true, () => false);
 
 // where each baked shot lives, and where it goes under the published folder
 const shotMap = {
-  bridge: { from: 'out/bridge', to: 'shots/bridge' },
-  implode: { from: 'out/implode', to: 'shots/implode' },
+  bridge: { from: 'out/bridge', to: 'shots/bridge', title: 'Bridge demolition' },
+  implode: { from: 'out/implode', to: 'shots/implode', title: 'Implosion' },
+  overpass: { from: 'out/overpass', to: 'shots/overpass', title: 'Highway overpass demolition' },
 };
 
 // three itself plus the addons the preview imports.  Addons pull in other
@@ -85,6 +86,19 @@ await mkdir(site, { recursive: true });
 await writeFile(path.join(site, 'index.html'), published);
 copied.push(path.join(site, 'index.html'));
 
+// A dedicated page per extra shot, each defaulting to its own folder so a
+// direct link opens the right demo without a query string.
+for (const name of shots) {
+  const map = shotMap[name];
+  if (!map || name === 'bridge') continue;
+  const own = published
+    .replace("params.get('shot') ?? 'shots/bridge/'", `params.get('shot') ?? '${map.to}/'`)
+    .replace('<title>Destruction preview</title>', `<title>${map.title ?? name}</title>`)
+    .replace('<b id="shot-name">bridge</b>', `<b id="shot-name">${name}</b>`);
+  await writeFile(path.join(site, `${name}.html`), own);
+  copied.push(path.join(site, `${name}.html`));
+}
+
 for (const name of shots) {
   const map = shotMap[name];
   if (!map) {
@@ -96,7 +110,7 @@ for (const name of shots) {
     missing.push(`${map.from}/sim.json — bake it first`);
     continue;
   }
-  for (const file of ['debris.glb', 'sim.json', 'motion.bin', 'shot.json']) {
+  for (const file of ['debris.glb', 'sim.json', 'motion.bin', 'shot.json', 'render.mp4', 'poster.jpg']) {
     if (await exists(path.join(from, file))) {
       copied.push(await put(path.join(from, file), `${map.to}/${file}`));
     }

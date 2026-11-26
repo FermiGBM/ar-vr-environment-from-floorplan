@@ -91,6 +91,32 @@ Two specs ship with the demo:
 * `examples/bridge/shot.json` — controlled demolition, visible blasts, gunfire.
 * `examples/bridge/shot-implode.json` — one invisible imploding charge.
 
+## The overpass (CC0 kitbash)
+
+`examples/overpass/` is a second, fancier asset assembled from Poly Haven CC0
+pieces instead of modelled by hand:
+
+```bash
+node src/make_overpass.mjs        # fetch + decimate props, write overpass.glb
+node src/bake.mjs --shot examples/overpass/shot.json --out out/overpass
+```
+
+* the deck, steel girders, piers and abutments are modelled in
+  `src/make_overpass.mjs`;
+* the road is a painted 12 m x 16 m tile (`src/roadtile.mjs`): four 3.5 m lanes,
+  dashed dividers, solid median lines, tire wear, cracks, tar patches and an
+  expansion joint that lands on the tile seam. The markings live in the
+  material, so a debris chunk keeps its slice of them;
+* `concrete_road_barrier`, `concrete_road_barrier_02` and `street_lamp_01` are
+  Poly Haven CC0 models, decimated with `meshoptimizer` and instanced rigidly
+  (one piece per prop) so the Voronoi pass stays cheap;
+* asphalt is `asphalt_pit_lane`, the concrete walls `concrete_wall_008`; every
+  map is re-encoded at build time so the whole GLB stays around 3 MB.
+
+Downloads cache under a temp dir; pass `--cache DIR` to reuse them, or
+`--inspect` to download the props and just print their triangle counts, sizes
+and planned instancing.
+
 ## What the bake produces
 
 | file | contents |

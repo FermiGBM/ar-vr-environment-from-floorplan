@@ -178,6 +178,15 @@ Rendering needs a machine with more than ~2 GB of RAM (esbuild bundling plus a
 headless browser); on a small laptop do the bake locally and the render on Cloud
 Shell or CI.
 
+## Rendering on Kaggle
+
+`tools/kaggle/` fans a shot out over free Kaggle CPU sessions (5 per account,
+27-frame chunks) and concatenates the chunks losslessly. The published bridge
+shot — 270 frames, 9 s, 1080p30 — was rendered this way in two waves on one
+account; the whole pipeline, including the dataset layout and the two shader
+pitfalls that cost a blank first frame, is documented in
+[`tools/kaggle/README.md`](tools/kaggle/README.md).
+
 ## Tests
 
 ```bash
